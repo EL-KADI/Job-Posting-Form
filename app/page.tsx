@@ -195,7 +195,7 @@ export default function JobPostingForm() {
 
   const checkAPIConnection = async () => {
     try {
-      const response = await fetch("http://localhost:5000/health", {
+      const response = await fetch("http://localhost:5000/offers/", {
         method: "GET",
         mode: "cors",
         signal: AbortSignal.timeout(5000),
@@ -797,21 +797,25 @@ export default function JobPostingForm() {
     };
   };
 
-  const getRecruiterID = () => {
-    return "3823eb09-f9f6-4bc7-a8f3-49e9aea76e1a";
-  };
-
   const submitToFlaskAPI = async (formData: any) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
+    const headers = {
+      "Content-Type": "application/json",
+      "X-Recruiter-ID": "3823eb09-f9f6-4bc7-a8f3-49e9aea76e1a",
+      Accept: "application/json",
+    };
+
     try {
+      console.log(
+        "Sending data to Flask API:",
+        JSON.stringify(formData, null, 2)
+      );
+
       const response = await fetch("http://localhost:5000/offers/create", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Recruiter-ID": getRecruiterID(),
-        },
+        headers: headers,
         body: JSON.stringify(formData),
         signal: controller.signal,
         mode: "cors",
@@ -821,8 +825,13 @@ export default function JobPostingForm() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error("API Error Response:", errorData);
 
         switch (response.status) {
+          case 415:
+            throw new Error(
+              "Unsupported Media Type: Ensure Content-Type is application/json"
+            );
           case 401:
             throw new Error("Authentication failed: Recruiter ID is missing");
           case 403:
@@ -837,9 +846,11 @@ export default function JobPostingForm() {
       }
 
       const result = await response.json();
+      console.log("API Success Response:", result);
       return result;
     } catch (error: any) {
       clearTimeout(timeoutId);
+      console.error("Submission error:", error.message);
 
       if (error.name === "AbortError") {
         throw new Error("Request timeout: Flask server is not responding");
@@ -868,7 +879,7 @@ export default function JobPostingForm() {
 
     try {
       const formData = prepareFormDataForAPI();
-      console.log("Sending data to API:", formData);
+      console.log("Prepared Form Data:", formData);
 
       const isConnected = await checkAPIConnection();
 
@@ -1378,7 +1389,7 @@ Hiring: We are hiring multiple candidates for this role`;
                           }}
                         >
                           <SelectTrigger
-                            className={`w-full h-12 pl-10 custom-select ${
+                            className={`w-full h-12 custom-select pl-10 ${
                               errors.education
                                 ? "border-red-500 focus:border-red-500"
                                 : "border-gray-300 focus:border-blue-500"
@@ -1743,7 +1754,7 @@ Hiring: We are hiring multiple candidates for this role`;
                             value={paymentFrequency}
                             onValueChange={setPaymentFrequency}
                           >
-                            <SelectTrigger className="h-12 custom-select border-gray-300 custom-select focus:border-blue-500 focus:ring-blue-500">
+                            <SelectTrigger className="h-12 border-gray-300 custom-select focus:border-blue-500 focus:ring-blue-500">
                               <SelectValue />
                               <ChevronDown className="h-6 w-6 custom-chevron text-blue-600" />
                             </SelectTrigger>
